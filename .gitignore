@@ -1,0 +1,56 @@
+# 原稿と構想メモは実装とは別に管理し、publicリポジトリへ誤って含めない。
+/paper/
+/kari.md
+/gennann.md
+
+# エージェント向けのローカル指示は公開物に含めない。
+/AGENTS.md
+
+# 外部OSのソース・イメージは巨大で、環境依存のsymlinkも含むため取得手順だけを公開する。
+/l4re
+/build*/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+Testing/
+target/
+
+# 生成した実行物とログを成果物のソースに混在させず、再ビルド可能な入力を残す。
+*.o
+*.a
+*.so
+*.so.*
+*.elf
+*.iso
+*.img
+*.qcow2
+*.log
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.cache/
+.venv/
+
+# 個人の編集設定・一時保存には原稿用設定やローカルパスが入り得る。
+/.vscode/
+/.idea/
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ローカル認証情報の誤追加を防ぐ。共有する雛形だけは明示的に例外とする。
+.env
+.env.*
+!.env.example
+!.env.sample
+.direnv/
+*.pem
+*.key
+id_rsa
+id_ed25519

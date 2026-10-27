@@ -1,0 +1,13 @@
+modaddr 0x01100000
+default-kernel fiasco -serial_esc
+default-bootstrap bootstrap
+
+entry zcomp_bench
+roottask moe rom/bench.cfg
+module l4re
+module ned
+module bench.cfg
+module zcomp-run
+module zcomp-bench
+module bench-linux
+module public.txt

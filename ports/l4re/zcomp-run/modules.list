@@ -1,0 +1,64 @@
+modaddr 0x01100000
+default-kernel fiasco -serial_esc
+default-bootstrap bootstrap
+
+entry zcomp
+roottask moe rom/zcomp.cfg
+module l4re
+module ned
+module zcomp.cfg
+module zcomp-run
+module resources-linux
+module pthread-linux
+module dynamic-hello
+module ld-musl-x86_64.so.1
+module libzcomp-example.so
+module public.txt
+module secret.txt
+module dynamic-bypass
+module libzcomp-native.so
+
+entry zcomp_dynamic
+roottask moe rom/zcomp.cfg dynamic
+module l4re
+module ned
+module zcomp.cfg
+module zcomp-run
+module dynamic-hello
+module ld-musl-x86_64.so.1
+module libzcomp-example.so
+
+entry zcomp_bypass_dynamic
+roottask moe rom/zcomp.cfg bypass-dynamic
+module l4re
+module ned
+module zcomp.cfg
+module zcomp-run
+module dynamic-bypass
+module ld-musl-x86_64.so.1
+module libzcomp-native.so
+module public.txt
+module secret.txt
+
+entry zcomp_busybox
+roottask moe rom/zcomp.cfg busybox
+module l4re
+module ned
+module zcomp.cfg
+module zcomp-run
+module busybox
+module busybox-musl
+module public.txt
+
+entry zcomp_sqlite
+roottask moe rom/zcomp.cfg sqlite
+module l4re
+module ned
+module zcomp.cfg
+module zcomp-run
+module sqlite3
+module sqlite-musl
+module libreadline.so.8
+module libncursesw.so.6
+module sqlite-query.sql
+module sample.db

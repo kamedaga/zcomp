@@ -1,0 +1,2 @@
+# Windowsで取得してもshellやアセンブリの改行をLFに保ち、WSLで同じ入力をビルドする。
+* text=auto eol=lf

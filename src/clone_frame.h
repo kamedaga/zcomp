@@ -1,0 +1,18 @@
+#ifndef ZCOMP_CLONE_FRAME_H
+#define ZCOMP_CLONE_FRAME_H
+
+/* Cと入口アセンブリで配置を共有し、片方だけの変更による復元先の破壊を防ぐ。 */
+#define ZCOMP_CLONE_CONTINUATION 128
+#define ZCOMP_CLONE_ORIGINAL 136
+#define ZCOMP_CLONE_CALL 144
+#define ZCOMP_CLONE_ARG1 144
+#define ZCOMP_CLONE_ARG2 152
+#define ZCOMP_CLONE_CHILD 160
+#define ZCOMP_CLONE_FLAGS 168
+
+/* 復元情報2ページとC用stackの間にguardを置き、stackの超過で保存状態を壊さない。 */
+#define ZCOMP_CLONE_DATA_PAGES 2
+#define ZCOMP_CLONE_STACK_PAGES 8
+#define ZCOMP_CLONE_MAP_PAGES (ZCOMP_CLONE_DATA_PAGES + 1 + ZCOMP_CLONE_STACK_PAGES)
+
+#endif
