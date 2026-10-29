@@ -1,0 +1,21 @@
+#cloud-config
+hostname: zcomp-debian-test
+manage_etc_hosts: false
+write_files:
+  - path: /etc/systemd/system/zcomp-test.service
+    content: |
+      [Unit]
+      After=systemd-user-sessions.service dbus.service ssh.service
+      ConditionPathExists=/work/ready
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/bash /work/repro-boot.sh
+      TimeoutStartSec=25min
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - [mkdir, -p, /mnt/seed, /work]
+  - [mount, -o, ro, /dev/sr0, /mnt/seed]
+  - [cp, -a, /mnt/seed/payload/., /work/]
+  - [systemctl, daemon-reload]
+  - [systemd-run, --unit=zcomp-prepare, --no-block, /bin/bash, /work/repro-boot.sh]
