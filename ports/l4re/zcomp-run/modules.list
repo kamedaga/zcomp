@@ -9,6 +9,7 @@ module ned
 module zcomp.cfg
 module zcomp-run
 module resources-linux
+module policy-linux
 module pthread-linux
 module dynamic-hello
 module ld-musl-x86_64.so.1
@@ -49,6 +50,7 @@ module zcomp-run
 module busybox
 module busybox-musl
 module public.txt
+module secret.txt
 
 entry zcomp_sqlite
 roottask moe rom/zcomp.cfg sqlite
@@ -61,4 +63,5 @@ module sqlite-musl
 module libreadline.so.8
 module libncursesw.so.6
 module sqlite-query.sql
+module sqlite-memory.sql
 module sample.db

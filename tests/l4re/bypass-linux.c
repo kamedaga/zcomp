@@ -11,10 +11,12 @@
 extern long linux_call(long number, long a1, long a2, long a3, long a4);
 extern long native_call(l4_cap_idx_t destination, long tag);
 extern unsigned char const *native_instruction_address(void);
+extern unsigned long long shim_call_count(void);
+extern void report_bypass_counts(unsigned long long, unsigned long long, unsigned long long, unsigned long long);
 
 enum {
     Linux_read = 0, Linux_write = 1, Linux_close = 3,
-    Linux_exit = 60, Linux_openat = 257,
+    Linux_getpid = 39, Linux_exit = 60, Linux_gettid = 186, Linux_openat = 257,
     Linux_AT_FDCWD = -100, Linux_ENOENT = 2,
     File_length = 8,
     // この試験の既知の配置で、ゲストのmmap範囲とスタックの間にある空きページを使う。
@@ -215,6 +217,13 @@ int probe_main(unsigned long argc, char const *const *argv)
 #endif
     require(native_instruction[0] == 0x0f && native_instruction[1] == 0x05,
             "The native IPC instruction was rewritten", -1);
+    // 通常入口とキャッシュ入口の両方で増えることを確認し、壊れた観測値の不変を成功扱いにしない。
+    unsigned long long shim_before = shim_call_count();
+    long tid = linux_call(Linux_gettid, 0, 0, 0, 0);
+    long pid = linux_call(Linux_getpid, 0, 0, 0, 0);
+    unsigned long long shim_after = shim_call_count();
+    require(tid > 0 && pid > 0 && shim_after == shim_before + 2,
+            "Shim counter did not count the control syscalls", shim_after - shim_before);
     l4re_env_t *env = *(l4re_env_t **)ZCOMP_ENV_ADDRESS;
     utcb = l4_utcb_direct();
     // 標準cap allocatorが予約済みの範囲より後ろを使い、既存capの上書きを避ける。
@@ -222,6 +231,7 @@ int probe_main(unsigned long argc, char const *const *argv)
     receive_slot = env->first_free_cap++ << L4_CAP_SHIFT;
     l4_buf_regs_t saved_buffers = *l4_utcb_br_u(utcb);
     l4_cap_idx_t files = named_cap(env, "linux_files");
+    unsigned long long native_before = shim_call_count();
     native_file(files, "public.txt", "public!\n", 1);
     native_file(files, "secret.txt", "secret!\n", secret_allowed);
     l4_cap_idx_t rom = named_cap(env, "rom");
@@ -233,6 +243,10 @@ int probe_main(unsigned long argc, char const *const *argv)
             "Native IPC reached the dropped startup ROM", denied.raw);
     // ゲストとランタイムはUTCBも共有する。受信窓を残すと後続の通常IPCを壊し得る。
     *l4_utcb_br_u(utcb) = saved_buffers;
+    unsigned long long native_after = shim_call_count();
+    // 成功通知のwriteは比較の後に行う。検査失敗時だけ測定区間内から診断を出す。
+    require(native_after == native_before, "Native IPC entered the shim", native_after - native_before);
+    report_bypass_counts(shim_before, shim_after, native_before, native_after);
     message(secret_allowed ? "PASS: route=native-l4 public=readable secret=readable rom-secret=hidden rom-cap=absent\n"
                            : "PASS: route=native-l4 public=readable secret=hidden rom-secret=hidden rom-cap=absent\n");
     message("PASS: Native L4 IPC used an unpatched overlapping instruction.\n");

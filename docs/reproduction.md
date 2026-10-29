@@ -51,7 +51,7 @@ L4RE_CASE=busybox make check-l4re-zcomp
 L4RE_CASE=sqlite make check-l4re-zcomp
 ```
 
-通常5ケースと配布バイナリのデモを実行する。各コマンドの`PASS`を確認する。
+通常12ケース、BusyBox 7ケース、SQLite 2ケースを実行する。各コマンドの`PASS`を確認する。
 TCGは`L4RE_ACCEL=tcg`を付ける。ケースの説明は[tests/l4re/README.md](../tests/l4re/README.md)を参照。
 
 ## 性能

@@ -8,12 +8,17 @@ import time
 from log import normalize
 
 CASES = {
-    "all": ("dynamic", "files", "pthread", "db-full", "db-hide"),
+    "all": ("dynamic", "files", "pthread", "db-full", "db-hide",
+            "cap-ok", "no-out", "no-file", "low-mem", "no-mem", "no-proc", "lo-proc"),
     "dynamic": ("dynamic",),
     "bypass-dynamic": ("db-full", "db-hide"),
-    "busybox": ("bb-sha",),
-    "sqlite": ("sq-read",),
+    "busybox": ("bb-echo", "bb-cat", "bb-hide", "bb-secr", "bb-full", "bb-sha", "bb-wc"),
+    "sqlite": ("sq-mem", "sq-read"),
 }
+EXIT_STATUS = {"bb-hide": 1, "bb-secr": 1}
+DENIED_CAPS = {"no-out": "linux_stdout", "no-file": "linux_files",
+               "no-mem": "linux_memory", "no-proc": "linux_process"}
+LIMITED_CAPS = {"low-mem": "linux_memory", "lo-proc": "linux_process"}
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 DONE = re.compile(r"\[zcomp-suite\] complete cases=(\d+) failed=(\d+)")
 
@@ -57,13 +62,15 @@ def validate(text, selected, work):
     expected = CASES[selected]
     require("Welcome to the L4Re Microkernel!" in text, "Guest kernel did not boot")
     results = re.findall(r"\[zcomp-result\] case=([\w-]+) status=(\d+)", text)
-    require(sorted(results) == sorted((name, "0") for name in expected), "Missing, failed, or unexpected guest tasks")
+    require(sorted(results) == sorted((name, str(EXIT_STATUS.get(name, 0))) for name in expected),
+            "Missing, failed, or unexpected guest tasks")
     require(DONE.findall(text) == [(str(len(expected)), "0")], "Incomplete suite")
     for case in expected:
         output = (case + "-out")[:8]
         diagnostic = "\n".join(re.findall(rf"^{case}\s*\| (.*)$", text, re.M))
         actual = "".join(line + "\n" for line in re.findall(rf"^{output}\s*\| (.*)$", text, re.M))
-        require(re.search(r"Guest exited: status=0 calls=[1-9]\d* ", diagnostic), f"No dispatch evidence: {case}")
+        status = EXIT_STATUS.get(case, 0)
+        require(re.search(rf"Guest exited: status={status} calls=[1-9]\d* ", diagnostic), f"No dispatch evidence: {case}")
         require(re.search(r"dropped=rom aliases=\d+ probe=removed", diagnostic), f"Startup ROM remained: {case}")
         if case == "dynamic":
             require("PASS: Dynamic musl auxv, relocation, constructors, TLS, shared-library syscall, and fork." in actual,
@@ -81,6 +88,21 @@ def validate(text, selected, work):
                     f"Native IPC policy failed: {case}")
             require("PASS: Native L4 IPC used an unpatched overlapping instruction." in actual,
                     f"The bypass was not exercised: {case}")
+            counts = re.findall(r"^BYPASS_COUNTS shim_before=(\d+) shim_after=(\d+) "
+                                r"native_before=(\d+) native_after=(\d+)$", actual, re.M)
+            require(len(counts) == 1, f"Missing or duplicate bypass counter comparison: {case}")
+            shim_before, shim_after, native_before, native_after = map(int, counts[0])
+            require(shim_before > 0 and shim_after == shim_before + 2, f"Shim counter control failed: {case}")
+            require(native_before == shim_after and native_after == native_before,
+                    f"Native IPC changed the shim call count: {case}")
+        elif case in DENIED_CAPS or case in LIMITED_CAPS:
+            # 終了0はゲストがerrnoを検査した結果。起動設定も照合し、別の権限での成功を混ぜない。
+            require(actual == "", f"Unexpected policy output: {case}")
+            if case in DENIED_CAPS:
+                require(f"name={DENIED_CAPS[case]} " not in diagnostic, f"Denied capability was supplied: {case}")
+            else:
+                require(re.search(rf"name={LIMITED_CAPS[case]} quota=65536 used=\d+", diagnostic),
+                        f"Expected a 64 KiB allocator: {case}")
         else:
             require(actual == (work / f"{case}.native.out").read_text(), f"Native output mismatch: {case}")
         print(f"PASS: {case}")

@@ -31,13 +31,14 @@ fetch libncursesw-6.5_p20251123-r0.apk 233f20a6d64d87afbc4b03ad3e7508f5d56af7475
 cp -- "$work_dir/sqlite-musl" "$work_dir/ld-musl-x86_64.so.1"
 cp -- "$work_dir/sqlite-musl" "$work_dir/libc.musl-x86_64.so.1"
 (cd "$work_dir" && sha256sum sqlite3 sqlite-musl libreadline.so.8 libncursesw.so.6) > "$work_dir/sqlite.sha256"
-cp -- "$project_dir/tests/l4re/sqlite-query.sql" "$work_dir/sqlite-query.sql"
+cp -- "$project_dir/tests/l4re/"sqlite-{query,memory}.sql "$work_dir/"
 
 sqlite=(env -i "$work_dir/sqlite-musl" --library-path "$work_dir" "$work_dir/sqlite3" -batch -noinit)
+"${sqlite[@]}" :memory: "$(<"$work_dir/sqlite-memory.sql")" > "$work_dir/sq-mem.native.out"
 # 毎回新しいDBを作り、過去の実行で残った内容に依存させない。
 database_dir=$(mktemp -d "$cache/database.XXXXXX")
 "${sqlite[@]}" "$database_dir/sample.db" \
     "CREATE TABLE items(name TEXT, amount INTEGER); INSERT INTO items VALUES ('alpha',10),('beta',25),('gamma',30);"
 cp -- "$database_dir/sample.db" "$work_dir/sample.db"
 "${sqlite[@]}" "file:$work_dir/sample.db?immutable=1" "$(<"$work_dir/sqlite-query.sql")" > "$work_dir/sq-read.native.out"
-printf 'PASS: Unmodified Alpine SQLite completed the native read-only query.\n'
+printf 'PASS: Unmodified Alpine SQLite completed native memory and read-only queries.\n'

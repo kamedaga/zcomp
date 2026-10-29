@@ -41,6 +41,12 @@ else
     [[ -f "$musl_loader" ]] || fail 'Set L4RE_MUSL_LOADER to the musl interpreter.'
     cp "$musl_loader" "$work_dir/ld-musl-x86_64.so.1"
     if [[ "$selected_case" == all ]]; then
+        cc -static -no-pie -nostdlib -O2 -Wall -Wextra -Werror -fno-pie -fno-builtin \
+            -fno-stack-protector -fcf-protection=none -mno-red-zone -mgeneral-regs-only \
+            -o "$work_dir/policy-linux" "$project_dir/tests/l4re/policy-entry.S" \
+            "$project_dir/tests/l4re/policy-linux.c"
+        (cd "$project_dir/tests/l4re/files" && timeout 20s env -i "$work_dir/policy-linux" all success) \
+            > "$work_dir/cap-ok.native.out"
         for target in resources-linux pthread-linux; do
             musl-gcc -static -no-pie -O2 -Wall -Wextra -Werror -pthread \
                 -o "$work_dir/$target" "$project_dir/tests/l4re/$target.c"
@@ -62,6 +68,9 @@ else
         unstripped="$l4re_dir/ext-pkg$port_dir/OBJ-amd64_gen-std-l4f/zcomp-run"
         env_address=$(nm -n "$unstripped" | awk '$3 == "l4re_global_env" { print "0x" $1 }')
         [[ "$env_address" =~ ^0x[[:xdigit:]]+$ ]] || fail 'Cannot locate l4re_global_env.'
+        c++ -std=c++17 -O2 -Wall -Wextra -Werror -mno-red-zone -mgeneral-regs-only \
+            -fno-exceptions -fno-rtti -fno-stack-protector -fcf-protection=none \
+            -I"$port_dir" -c "$project_dir/tests/l4re/bypass-count.cc" -o "$work_dir/bypass-count.o"
         musl-gcc -shared -nostdlib -fPIC -Wl,-soname,libzcomp-native.so \
             -o "$work_dir/libzcomp-native.so" "$project_dir/tests/l4re/bypass-native.S"
         musl-gcc -no-pie -fno-pie -O2 -Wall -Wextra -Werror -fno-builtin -fno-stack-protector \
@@ -69,7 +78,7 @@ else
             -I"$l4re_dir/include/amd64" -I"$l4re_dir/include" -DZCOMP_ENV_ADDRESS="$env_address" \
             -DZCOMP_DYNAMIC_PROBE -Wl,-rpath,/lib -L"$work_dir" -o "$work_dir/dynamic-bypass" \
             "$project_dir/tests/l4re/dynamic-bypass.c" "$project_dir/tests/l4re/bypass-linux.c" \
-            "$project_dir/tests/l4re/bypass-linux-call.S" -lzcomp-native
+            "$project_dir/tests/l4re/bypass-linux-call.S" "$work_dir/bypass-count.o" -lzcomp-native
         (cd "$project_dir/tests/l4re/files" && env -i LD_LIBRARY_PATH="$work_dir" "$work_dir/dynamic-bypass" native public)
         hidden=$(mktemp -d "$work_dir/native-hidden.XXXXXX")
         cp "$project_dir/tests/l4re/files/public.txt" "$hidden/"

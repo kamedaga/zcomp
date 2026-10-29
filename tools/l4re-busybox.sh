@@ -42,7 +42,25 @@ readelf -h "$work_dir/busybox" | rg -q 'Type:.*DYN' || fail 'Expected a PIE exec
 readelf -l "$work_dir/busybox" | rg -q 'interpreter: /lib/ld-musl-x86_64.so.1' \
     || fail 'Unexpected interpreter path.'
 
-# PT_INTERPを書き換えず、Linux対照でも同じ配布版muslを明示して使う。
-(cd "$project_dir/tests/l4re/files" && env -i "$work_dir/busybox-musl" "$work_dir/busybox" sha256sum public.txt) \
-    > "$work_dir/bb-sha.native.out"
-printf 'PASS: Alpine BusyBox and musl hashes verified; native SHA-256 completed.\n'
+# 非公開ファイルの対照には新しい空ディレクトリを使い、以前のfixtureを拾わない。
+empty_dir=$(mktemp -d "$cache/empty.XXXXXX")
+trap 'rm -rf -- "$empty_dir"' EXIT
+for name in bb-echo bb-cat bb-hide bb-secr bb-full bb-sha bb-wc; do
+    directory="$project_dir/tests/l4re/files"
+    expected=0
+    case "$name" in
+        bb-echo) arguments=(echo BusyBox-demo) ;;
+        bb-cat) arguments=(cat public.txt) ;;
+        bb-hide) arguments=(cat public.txt); directory="$empty_dir"; expected=1 ;;
+        bb-secr) arguments=(cat secret.txt); directory="$empty_dir"; expected=1 ;;
+        bb-full) arguments=(cat secret.txt) ;;
+        bb-sha) arguments=(sha256sum public.txt) ;;
+        bb-wc) arguments=(wc -c public.txt) ;;
+    esac
+    # PT_INTERPを書き換えず、Linux対照でも同じ配布版muslを明示して使う。
+    status=0
+    (cd "$directory" && env -i "$work_dir/busybox-musl" "$work_dir/busybox" "${arguments[@]}") \
+        > "$work_dir/$name.native.out" 2>&1 || status=$?
+    [[ "$status" == "$expected" ]] || fail "Unexpected native exit status: $name ($status)."
+done
+printf 'PASS: Alpine BusyBox and musl hashes verified; seven native cases completed.\n'
